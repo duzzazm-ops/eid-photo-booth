@@ -1,98 +1,99 @@
 import { Frame } from '../types/photobooth';
-import filmStripFrame from '@/assets/frames/film-strip.svg';
-import filmLandscapeFrame from '@/assets/frames/film-landscape.svg';
-import greenBuntingFrame from '@/assets/frames/green-bunting.svg';
-import blueBuntingFrame from '@/assets/frames/blue-bunting.svg';
-import whiteDecorativeFrame from '@/assets/frames/white-decorative.svg';
-import postageStampFrame from '@/assets/frames/postage-stamp.svg';
 
+const base = import.meta.env.BASE_URL;
+const assetBase = base.endsWith('/') ? base.slice(0, -1) : base;
+
+/** PNG frames in /public/frames — replace with your real transparent PNGs (same filenames). */
+export function framePublicPng(name: string): string {
+  return `${assetBase}/frames/${name}.png`;
+}
+
+/** Ratios & photo windows tuned to PNGs in public/frames (detected from transparent holes). */
 export const frames: Frame[] = [
-  // Single photo frames
   {
     id: 'film-landscape',
     name: { en: 'Classic Film', ar: 'فيلم كلاسيكي' },
     mode: 'single',
-    imagePath: filmLandscapeFrame,
-    ratio: 3 / 4,
+    imagePath: framePublicPng('film-landscape'),
+    ratio: 1,
     photoArea: {
-      x: 12,
-      y: 12,
-      width: 76,
-      height: 76
-    }
+      x: 13.8,
+      y: 7.96,
+      width: 72.5,
+      height: 84.07,
+    },
   },
   {
     id: 'green-bunting',
     name: { en: 'Green Celebration', ar: 'احتفال أخضر' },
     mode: 'single',
-    imagePath: greenBuntingFrame,
-    ratio: 3 / 4,
+    imagePath: framePublicPng('green-bunting'),
+    ratio: 1080 / 1350,
     photoArea: {
-      x: 4,
-      y: 6,
-      width: 92,
-      height: 83
-    }
+      x: 7.96,
+      y: 9.41,
+      width: 84.07,
+      height: 72.37,
+    },
   },
   {
     id: 'blue-bunting',
     name: { en: 'Blue Celebration', ar: 'احتفال أزرق' },
     mode: 'single',
-    imagePath: blueBuntingFrame,
-    ratio: 3 / 4,
+    imagePath: framePublicPng('blue-bunting'),
+    ratio: 1080 / 1350,
     photoArea: {
-      x: 4,
-      y: 6,
-      width: 92,
-      height: 83
-    }
+      x: 7.96,
+      y: 9.33,
+      width: 84.07,
+      height: 72.44,
+    },
   },
   {
     id: 'white-decorative',
     name: { en: 'Elegant White', ar: 'أبيض أنيق' },
     mode: 'single',
-    imagePath: whiteDecorativeFrame,
-    ratio: 3 / 4,
+    imagePath: framePublicPng('white-decorative'),
+    ratio: 1280 / 720,
     photoArea: {
-      x: 8,
-      y: 6,
-      width: 84,
-      height: 74
-    }
+      x: 17.66,
+      y: 8.47,
+      width: 65.16,
+      height: 73.33,
+    },
   },
   {
     id: 'postage-stamp',
     name: { en: 'Postage Stamp', ar: 'طابع بريدي' },
     mode: 'single',
-    imagePath: postageStampFrame,
-    ratio: 3 / 4,
+    imagePath: framePublicPng('postage-stamp'),
+    ratio: 1280 / 720,
     photoArea: {
-      x: 6,
-      y: 6,
-      width: 88,
-      height: 72
-    }
+      x: 16.88,
+      y: 8.47,
+      width: 66.02,
+      height: 80.42,
+    },
   },
-  // Strip mode frame
   {
     id: 'film-strip',
     name: { en: 'Photo Strip', ar: 'شريط الصور' },
     mode: 'strip',
-    imagePath: filmStripFrame,
-    ratio: 3 / 4,
+    imagePath: framePublicPng('film-strip'),
+    ratio: 1080 / 1920,
     photoArea: {
-      x: 15,
-      y: 15,
-      width: 70,
-      height: 70
+      x: 33.98,
+      y: 5.99,
+      width: 31.39,
+      height: 88.03,
     },
     photoAreas: [
-      { x: 15, y: 15, width: 70, height: 17.5 },
-      { x: 15, y: 32.5, width: 70, height: 17.5 },
-      { x: 15, y: 50, width: 70, height: 17.5 },
-      { x: 15, y: 67.5, width: 70, height: 17.5 }
+      { x: 33.98, y: 5.99, width: 31.39, height: 18.7 },
+      { x: 34.07, y: 25.99, width: 31.3, height: 23.65 },
+      { x: 33.98, y: 50.94, width: 31.39, height: 23.65 },
+      { x: 34.07, y: 75.89, width: 31.3, height: 18.13 },
     ],
-  }
+  },
 ];
 
 interface RenderTextOptions {
@@ -106,10 +107,9 @@ interface RenderPhotoOptions {
   text?: RenderTextOptions;
 }
 
-// Helper function to render photo with frame
 export const renderPhotoWithFrame = async (
   frame: Frame,
-  photos: string[], // Array of photo data URLs
+  photos: string[],
   options: RenderPhotoOptions = {}
 ): Promise<string> => {
   const outputWidth = options.outputWidth ?? 1200;
@@ -149,14 +149,7 @@ export const renderPhotoWithFrame = async (
     for (let i = 0; i < 4; i++) {
       if (!photoImages[i]) continue;
       const target = stripAreas[i];
-      drawImageCover(
-        ctx,
-        photoImages[i],
-        target.x,
-        target.y,
-        target.width,
-        target.height
-      );
+      drawImageCover(ctx, photoImages[i], target.x, target.y, target.width, target.height);
     }
   } else if (photoImages[0]) {
     drawImageCover(ctx, photoImages[0], areaX, areaY, areaWidth, areaHeight);
@@ -195,7 +188,6 @@ const drawTextOverlay = (
   ctx.restore();
 };
 
-// Helper to draw image with cover behavior (like CSS object-fit: cover)
 const drawImageCover = (
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -206,18 +198,16 @@ const drawImageCover = (
 ) => {
   const imgRatio = img.width / img.height;
   const areaRatio = width / height;
-  
+
   let sx = 0;
   let sy = 0;
   let sWidth = img.width;
   let sHeight = img.height;
 
   if (imgRatio > areaRatio) {
-    // Image is wider than area - crop sides
     sWidth = img.height * areaRatio;
     sx = (img.width - sWidth) / 2;
   } else {
-    // Image is taller than area - crop top/bottom
     sHeight = img.width / areaRatio;
     sy = (img.height - sHeight) / 2;
   }

@@ -8,6 +8,7 @@ import { frames } from '../utils/frames';
 import { useCamera } from '../hooks/useCamera';
 import { usePhotoCapture } from '../hooks/usePhotoCapture';
 import { FlowStepper } from '../components/FlowStepper';
+import { previewFilterCss } from '../utils/photoFilters';
 
 export function Camera() {
   const navigate = useNavigate();
@@ -29,16 +30,7 @@ export function Camera() {
 
   const filters: FilterType[] = ['none', 'soft', 'bw', 'warm', 'vintage', 'cool'];
   const frameRatio = selectedFrame?.ratio ?? 3 / 4;
-  const photoAreaStyle = useMemo(() => {
-    if (!selectedFrame) return { inset: '0%' };
-    const { x, y, width, height } = selectedFrame.photoArea;
-    return {
-      left: `${x}%`,
-      top: `${y}%`,
-      width: `${width}%`,
-      height: `${height}%`,
-    };
-  }, [selectedFrame]);
+  const videoPreviewFilter = useMemo(() => previewFilterCss(selectedFilter), [selectedFilter]);
 
   const {
     stream,
@@ -236,41 +228,38 @@ export function Camera() {
         </div>
       </div>
 
-      {/* Camera view with frame overlay */}
-      <div className="flex-1 min-h-0 relative bg-gray-900 flex items-center justify-center overflow-hidden px-2 pt-2 pb-1 sm:px-4 sm:py-3">
-        <div
-          className="relative w-full max-w-4xl mx-auto"
-        >
+      {/* Camera view: stage matches frame ratio; video fills stage; PNG frame on top (transparent holes show video only) */}
+      <div className="flex-1 min-h-0 relative bg-[#1a1a1a] flex items-center justify-center overflow-hidden px-2 pt-2 pb-1 sm:px-4 sm:py-3">
+        <div className="relative mx-auto w-full max-w-[min(100%,56rem)] flex justify-center">
           <div
-            className="relative w-full mx-auto rounded-lg overflow-hidden bg-black shadow-2xl max-h-[min(76dvh,calc(100dvh-16.25rem))] sm:max-h-[min(82vh,calc(100dvh-14rem))]"
-            style={{ aspectRatio: `${frameRatio}` }}
+            className="relative overflow-hidden rounded-lg bg-black shadow-2xl max-w-full"
+            style={{
+              height: 'min(76dvh, calc(100dvh - 16.25rem))',
+              aspectRatio: `${frameRatio}`,
+              width: 'auto',
+            }}
           >
-          {/* Video feed aligned to frame photo area */}
-          <div className="absolute inset-0">
-            <div className="absolute overflow-hidden rounded-sm" style={photoAreaStyle}>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`absolute inset-0 w-full h-full object-cover ${
-                  facingMode === 'user' ? 'object-[center_35%]' : 'object-center'
-                }`}
-                style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
-              />
-            </div>
-          </div>
-          
-          {/* Frame overlay */}
-          <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Full-bleed live video (clipped to stage — same composition as export object-fit: cover in photo area) */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`absolute inset-0 h-full w-full object-cover motion-reduce:transition-none ${
+              facingMode === 'user' ? 'object-[center_38%]' : 'object-center'
+            }`}
+            style={{
+              transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+              filter: videoPreviewFilter,
+            }}
+          />
+
+          {/* Transparent PNG frame artwork */}
+          <div className="absolute inset-0 z-10 pointer-events-none">
             <img
               src={selectedFrame.imagePath}
               alt=""
-              className="absolute inset-0 w-full h-full object-fill drop-shadow-2xl"
-              style={{ 
-                opacity: 0.9,
-                filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.5))'
-              }}
+              className="absolute inset-0 h-full w-full object-contain [image-rendering:auto]"
               draggable={false}
             />
           </div>

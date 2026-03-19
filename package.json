@@ -4,6 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "frames:build": "node scripts/rasterize-frames.mjs",
+    "frames:import": "node scripts/import-chat-frames.mjs",
     "build": "vite build",
     "dev": "vite"
   },
@@ -67,6 +69,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "sharp": "0.34.5",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   },
