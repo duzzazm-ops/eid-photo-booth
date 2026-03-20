@@ -100,7 +100,8 @@ export interface RenderPhotoOptions {
 
 /**
  * Export: white matte → photo only inside (hole ∩ inset bbox), full frame on top.
- * Uses contain + clip so bitmap never spills past the window; masks to real PNG transparency.
+ * Photo uses cover (Math.max scale) + clip — cropping allowed, no stretch; alpha-hole mask clips spill.
+ * Final PNG is opaque on white (toDataURL); same path on all devices.
  */
 export const renderPhotoWithFrame = async (
   frame: Frame,
@@ -145,7 +146,7 @@ export const renderPhotoWithFrame = async (
   pctx.beginPath();
   pctx.rect(areaX, areaY, areaWidth, areaHeight);
   pctx.clip();
-  drawImageContainAnchored(pctx, photoImg, areaX, areaY, areaWidth, areaHeight, 0.5, anchorY);
+  drawImageCoverAnchored(pctx, photoImg, areaX, areaY, areaWidth, areaHeight, 0.5, anchorY);
   pctx.restore();
 
   const frameScratch = document.createElement('canvas');
@@ -189,11 +190,25 @@ export const renderPhotoWithFrame = async (
   ctx.putImageData(out, 0, 0);
   ctx.drawImage(frameImg, 0, 0, outputWidth, outputHeight);
 
+  // Flatten any residual alpha (e.g. soft frame edges) onto white — fully opaque output
+  const flat = ctx.getImageData(0, 0, outputWidth, outputHeight);
+  const d = flat.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3] / 255;
+    if (a < 1) {
+      d[i] = Math.round(d[i] * a + 255 * (1 - a));
+      d[i + 1] = Math.round(d[i + 1] * a + 255 * (1 - a));
+      d[i + 2] = Math.round(d[i + 2] * a + 255 * (1 - a));
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(flat, 0, 0);
+
   return canvas.toDataURL('image/png');
 };
 
-/** object-fit: contain — entire image visible inside box; letterboxing stays white inside clip. */
-function drawImageContainAnchored(
+/** object-fit: cover — fills box via uniform scale (Math.max); may crop; anchors focal point. */
+function drawImageCoverAnchored(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   x: number,
@@ -203,7 +218,7 @@ function drawImageContainAnchored(
   anchorX: number,
   anchorY: number
 ) {
-  const scale = Math.min(width / img.width, height / img.height);
+  const scale = Math.max(width / img.width, height / img.height);
   const sw = img.width * scale;
   const sh = img.height * scale;
   const dx = x + width * anchorX - img.width * anchorX * scale;
