@@ -15,34 +15,18 @@ export function frameRequiresLandscapeCapture(frame: Frame): boolean {
 /** Ratios & photo windows (see scripts/detect-photo-holes.mjs). */
 export const frames: Frame[] = [
   {
-    id: 'film-landscape',
-    name: { en: 'Classic Film', ar: 'فيلم كلاسيكي' },
-    imagePath: framePublicPng('film-landscape'),
-    ratio: 1,
-    orientation: 'portrait',
-    renderTune: {
-      coverSourceExpand: 1.14,
-      anchorX: 0.5,
-      anchorY: 0.45,
-    },
-    photoArea: {
-      x: 13.8,
-      y: 7.96,
-      width: 72.5,
-      height: 84.07,
-    },
-  },
-  {
     id: 'green-bunting',
     name: { en: 'Green Celebration', ar: 'احتفال أخضر' },
     imagePath: framePublicPng('green-bunting'),
     orientation: 'portrait',
     ratio: 1080 / 1350,
+    /** Larger opening: photo + white mat fill more of the frame hole (inside transparent area). */
+    photoBBoxInset: 0.015,
     photoArea: {
-      x: 10.06,
-      y: 11.22,
-      width: 79.87,
-      height: 68.75,
+      x: 4.75,
+      y: 6.85,
+      width: 90.5,
+      height: 79.25,
     },
   },
   {
@@ -51,11 +35,12 @@ export const frames: Frame[] = [
     imagePath: framePublicPng('blue-bunting'),
     orientation: 'portrait',
     ratio: 1080 / 1350,
+    photoBBoxInset: 0.015,
     photoArea: {
-      x: 10.06,
-      y: 11.14,
-      width: 79.87,
-      height: 68.82,
+      x: 4.75,
+      y: 6.78,
+      width: 90.5,
+      height: 79.32,
     },
   },
   {
@@ -86,8 +71,8 @@ export const frames: Frame[] = [
   },
 ];
 
-/** Shrink photo window so content stays inside decorative borders (per edge, 0–0.5). */
-const PHOTO_BBOX_INSET = 0.04;
+/** Default shrink inside photoArea so content stays inside decorative borders (per edge, 0–0.5). */
+const DEFAULT_PHOTO_BBOX_INSET = 0.04;
 
 /** Pixels with frame alpha below this count as “hole” (show photo). */
 const HOLE_ALPHA_THRESHOLD = 140;
@@ -139,7 +124,8 @@ export const renderPhotoWithFrame = async (
     throw new Error('Canvas context not available');
   }
 
-  const inset = insetPhotoArea(frame.photoArea, PHOTO_BBOX_INSET);
+  const insetFrac = frame.photoBBoxInset ?? DEFAULT_PHOTO_BBOX_INSET;
+  const inset = insetPhotoArea(frame.photoArea, insetFrac);
   const areaX = (inset.x / 100) * canvas.width;
   const areaY = (inset.y / 100) * canvas.height;
   const areaWidth = (inset.width / 100) * canvas.width;

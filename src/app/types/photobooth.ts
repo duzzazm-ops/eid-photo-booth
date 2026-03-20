@@ -10,7 +10,7 @@ export interface PhotoArea {
 /** Landscape frames require device held sideways before capture (see Camera). */
 export type FrameOrientation = 'portrait' | 'landscape';
 
-/** Optional per-frame export tuning (e.g. film-landscape: show more FOV without affecting others). */
+/** Optional per-frame export tuning (cover crop / focal point). */
 export interface FrameRenderTune {
   /** >1 widens the source crop for cover (more scene visible). Default 1. */
   coverSourceExpand?: number;
@@ -31,6 +31,11 @@ export interface Frame {
   orientation?: FrameOrientation;
   /** Export-only cover tuning */
   renderTune?: FrameRenderTune;
+  /**
+   * Shrink photo bbox inside photoArea (0–0.2). Lower = bigger picture + white mat inside the hole.
+   * Default in renderer is 0.04 when unset.
+   */
+  photoBBoxInset?: number;
 }
 
 export interface CapturedPhoto {

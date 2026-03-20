@@ -9,7 +9,6 @@ Use exactly **one** `.png` suffix (not `myframe.png.png`).
 
 | File | Frame id |
 |------|-----------|
-| `film-landscape.png` | `film-landscape` |
 | `green-bunting.png` | `green-bunting` |
 | `blue-bunting.png` | `blue-bunting` |
 | `white-decorative.png` | `white-decorative` |
@@ -41,7 +40,7 @@ If Cursor saved attachments under a folder with names like `...frame-square-film
    npm run frames:import -- --from="C:\path\to\that\folder"
    ```
 
-   It matches keywords in the filename (`green-bunting`, `blue-bunting`, `white-decorative`, `postage-stamp`, `frame-square-film` / `film-eid` → `film-landscape`).
+   It matches keywords in the filename (`green-bunting`, `blue-bunting`, `white-decorative`, `postage-stamp`).
 
 2. Or create **`user-frame-exports/`** in the project root, drop your PNGs there, then:
 

@@ -91,7 +91,6 @@ async function holeFromCenter(file, marginFrac = 0.08) {
 }
 
 const FILES = [
-  'film-landscape.png',
   'green-bunting.png',
   'blue-bunting.png',
   'white-decorative.png',

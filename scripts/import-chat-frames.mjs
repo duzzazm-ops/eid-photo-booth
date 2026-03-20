@@ -19,8 +19,6 @@ const MAP = [
   { match: 'blue-bunting', to: 'blue-bunting' },
   { match: 'white-decorative', to: 'white-decorative' },
   { match: 'postage-stamp', to: 'postage-stamp' },
-  { match: 'frame-square-film', to: 'film-landscape' },
-  { match: 'film-eid', to: 'film-landscape' },
 ]
 
 function defaultSearchRoots() {

@@ -19,7 +19,6 @@ const H = 1200
 
 /** @type {{ svg: string, png: string, holes: [number, number, number, number][] }[]} */
 const FRAMES = [
-  { svg: 'film-landscape.svg', png: 'film-landscape.png', holes: [[12, 12, 76, 76]] },
   { svg: 'green-bunting.svg', png: 'green-bunting.png', holes: [[4, 6, 92, 83]] },
   { svg: 'blue-bunting.svg', png: 'blue-bunting.png', holes: [[4, 6, 92, 83]] },
   { svg: 'white-decorative.svg', png: 'white-decorative.png', holes: [[8, 6, 84, 74]] },
