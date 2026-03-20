@@ -1,4 +1,4 @@
-import { Frame } from '../types/photobooth';
+import { Frame, PhotoArea } from '../types/photobooth';
 
 const base = import.meta.env.BASE_URL;
 const assetBase = base.endsWith('/') ? base.slice(0, -1) : base;
@@ -8,7 +8,7 @@ export function framePublicPng(name: string): string {
   return `${assetBase}/frames/${name}.png`;
 }
 
-/** Ratios & photo windows aligned to transparent holes (see scripts/detect-photo-holes.mjs). */
+/** Ratios & photo windows (see scripts/detect-photo-holes.mjs). */
 export const frames: Frame[] = [
   {
     id: 'film-landscape',
@@ -27,7 +27,6 @@ export const frames: Frame[] = [
     name: { en: 'Green Celebration', ar: 'احتفال أخضر' },
     imagePath: framePublicPng('green-bunting'),
     ratio: 1080 / 1350,
-    // Inset ~2.5% vs full alpha bbox — outer transparent bbox matched a larger region than the green card window
     photoArea: {
       x: 10.06,
       y: 11.22,
@@ -73,14 +72,35 @@ export const frames: Frame[] = [
   },
 ];
 
+/** Shrink photo window so content stays inside decorative borders (per edge, 0–0.5). */
+const PHOTO_BBOX_INSET = 0.04;
+
+/** Pixels with frame alpha below this count as “hole” (show photo). */
+const HOLE_ALPHA_THRESHOLD = 140;
+
+function insetPhotoArea(area: PhotoArea, edgeFrac: number): PhotoArea {
+  const e = Math.min(0.2, Math.max(0, edgeFrac));
+  const nx = area.x + area.width * e;
+  const ny = area.y + area.height * e;
+  const nw = area.width * (1 - 2 * e);
+  const nh = area.height * (1 - 2 * e);
+  return {
+    x: nx,
+    y: ny,
+    width: Math.max(1, nw),
+    height: Math.max(1, nh),
+  };
+}
+
 export interface RenderPhotoOptions {
   outputWidth?: number;
-  /** Match live preview: front camera uses ~38% vertical object-position in Camera.tsx */
+  /** Front-camera captures use a higher focal point when composing into the hole */
   previewFacingUser?: boolean;
 }
 
 /**
- * Export: solid white background → photo (cover in hole) → frame PNG on top. No text.
+ * Export: white matte → photo only inside (hole ∩ inset bbox), full frame on top.
+ * Uses contain + clip so bitmap never spills past the window; masks to real PNG transparency.
  */
 export const renderPhotoWithFrame = async (
   frame: Frame,
@@ -99,29 +119,81 @@ export const renderPhotoWithFrame = async (
   const canvas = document.createElement('canvas');
   canvas.width = outputWidth;
   canvas.height = outputHeight;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) {
     throw new Error('Canvas context not available');
   }
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const areaX = (frame.photoArea.x / 100) * canvas.width;
-  const areaY = (frame.photoArea.y / 100) * canvas.height;
-  const areaWidth = (frame.photoArea.width / 100) * canvas.width;
-  const areaHeight = (frame.photoArea.height / 100) * canvas.height;
+  const inset = insetPhotoArea(frame.photoArea, PHOTO_BBOX_INSET);
+  const areaX = (inset.x / 100) * canvas.width;
+  const areaY = (inset.y / 100) * canvas.height;
+  const areaWidth = (inset.width / 100) * canvas.width;
+  const areaHeight = (inset.height / 100) * canvas.height;
 
   const anchorY = options.previewFacingUser === true ? 0.38 : 0.5;
-  drawImageCoverAnchored(ctx, photoImg, areaX, areaY, areaWidth, areaHeight, 0.5, anchorY);
 
-  ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+  const photoLayer = document.createElement('canvas');
+  photoLayer.width = outputWidth;
+  photoLayer.height = outputHeight;
+  const pctx = photoLayer.getContext('2d');
+  if (!pctx) {
+    throw new Error('Photo layer context not available');
+  }
+  pctx.fillStyle = '#FFFFFF';
+  pctx.fillRect(0, 0, outputWidth, outputHeight);
+  pctx.save();
+  pctx.beginPath();
+  pctx.rect(areaX, areaY, areaWidth, areaHeight);
+  pctx.clip();
+  drawImageContainAnchored(pctx, photoImg, areaX, areaY, areaWidth, areaHeight, 0.5, anchorY);
+  pctx.restore();
+
+  const frameScratch = document.createElement('canvas');
+  frameScratch.width = outputWidth;
+  frameScratch.height = outputHeight;
+  const fctx = frameScratch.getContext('2d');
+  if (!fctx) {
+    throw new Error('Frame scratch context not available');
+  }
+  fctx.drawImage(frameImg, 0, 0, outputWidth, outputHeight);
+  const frameData = fctx.getImageData(0, 0, outputWidth, outputHeight);
+  const photoData = pctx.getImageData(0, 0, outputWidth, outputHeight);
+  const out = ctx.createImageData(outputWidth, outputHeight);
+  const fd = frameData.data;
+  const pd = photoData.data;
+  const od = out.data;
+  const x0 = Math.floor(areaX);
+  const y0 = Math.floor(areaY);
+  const x1 = Math.ceil(areaX + areaWidth);
+  const y1 = Math.ceil(areaY + areaHeight);
+
+  for (let y = 0; y < outputHeight; y++) {
+    for (let x = 0; x < outputWidth; x++) {
+      const i = (y * outputWidth + x) * 4;
+      const inBbox = x >= x0 && x < x1 && y >= y0 && y < y1;
+      const inHole = fd[i + 3] < HOLE_ALPHA_THRESHOLD;
+      if (inHole && inBbox) {
+        od[i] = pd[i];
+        od[i + 1] = pd[i + 1];
+        od[i + 2] = pd[i + 2];
+        od[i + 3] = 255;
+      } else {
+        od[i] = 255;
+        od[i + 1] = 255;
+        od[i + 2] = 255;
+        od[i + 3] = 255;
+      }
+    }
+  }
+
+  ctx.putImageData(out, 0, 0);
+  ctx.drawImage(frameImg, 0, 0, outputWidth, outputHeight);
 
   return canvas.toDataURL('image/png');
 };
 
-/** object-fit: cover with object-position (anchorX*100%, anchorY*100%) on image & box — matches CSS semantics. */
-const drawImageCoverAnchored = (
+/** object-fit: contain — entire image visible inside box; letterboxing stays white inside clip. */
+function drawImageContainAnchored(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   x: number,
@@ -130,14 +202,14 @@ const drawImageCoverAnchored = (
   height: number,
   anchorX: number,
   anchorY: number
-) => {
-  const scale = Math.max(width / img.width, height / img.height);
+) {
+  const scale = Math.min(width / img.width, height / img.height);
   const sw = img.width * scale;
   const sh = img.height * scale;
   const dx = x + width * anchorX - img.width * anchorX * scale;
   const dy = y + height * anchorY - img.height * anchorY * scale;
   ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, sw, sh);
-};
+}
 
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
