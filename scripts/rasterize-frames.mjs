@@ -24,16 +24,6 @@ const FRAMES = [
   { svg: 'blue-bunting.svg', png: 'blue-bunting.png', holes: [[4, 6, 92, 83]] },
   { svg: 'white-decorative.svg', png: 'white-decorative.png', holes: [[8, 6, 84, 74]] },
   { svg: 'postage-stamp.svg', png: 'postage-stamp.png', holes: [[6, 6, 88, 72]] },
-  {
-    svg: 'film-strip.svg',
-    png: 'film-strip.png',
-    holes: [
-      [15, 15, 70, 17.5],
-      [15, 32.5, 70, 17.5],
-      [15, 50, 70, 17.5],
-      [15, 67.5, 70, 17.5],
-    ],
-  },
 ]
 
 /**

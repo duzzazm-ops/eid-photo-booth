@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Download, RotateCcw, Home, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
-import { CaptureMode, CapturedPhoto } from '../types/photobooth';
+import { CapturedPhoto } from '../types/photobooth';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { frames, renderPhotoWithFrame } from '../utils/frames';
 import { FlowStepper } from '../components/FlowStepper';
@@ -11,16 +11,10 @@ import { savePhotoToDevice } from '../utils/saveImage';
 export function Preview() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
-  const [captureMode, setCaptureMode] = useState<CaptureMode>('single');
   const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
   const [frameId, setFrameId] = useState<string>('');
   const [finalImageUrl, setFinalImageUrl] = useState<string>('');
   const [isRendering, setIsRendering] = useState(true);
-  const [customText, setCustomText] = useState({
-    arabic: 'عيد سعيد',
-    familyName: '',
-    yearLabel: 'Eid 2026',
-  });
   const [renderError, setRenderError] = useState(false);
   const [iosHelpOpen, setIosHelpOpen] = useState(false);
   const [tapToOpenUrl, setTapToOpenUrl] = useState<string | null>(null);
@@ -31,17 +25,14 @@ export function Preview() {
   const previewAspect = selectedFrame?.ratio ?? 3 / 4;
 
   useEffect(() => {
-    const mode = sessionStorage.getItem('captureMode') as CaptureMode;
     const fId = sessionStorage.getItem('selectedFrameId');
     const photosJson = sessionStorage.getItem('capturedPhotos');
-    const textJson = sessionStorage.getItem('customText');
 
-    if (!mode || !fId || !photosJson) {
-      navigate('/mode');
+    if (!fId || !photosJson) {
+      navigate('/frames');
       return;
     }
 
-    setCaptureMode(mode);
     setFrameId(fId);
     try {
       const parsed = JSON.parse(photosJson) as unknown;
@@ -52,27 +43,13 @@ export function Preview() {
       setCapturedPhotos(parsed as CapturedPhoto[]);
     } catch {
       navigate('/camera');
-      return;
-    }
-    if (textJson) {
-      try {
-        setCustomText(JSON.parse(textJson));
-      } catch {
-        /* keep defaults */
-      }
     }
   }, [navigate]);
 
-  useEffect(() => {
-    if (capturedPhotos.length > 0 && frameId) {
-      renderFinalImage();
-    }
-  }, [capturedPhotos, customText, frameId]);
-
-  const renderFinalImage = async () => {
+  const renderFinalImage = useCallback(async () => {
     setIsRendering(true);
     setRenderError(false);
-    
+
     const frame = frames.find((f) => f.id === frameId);
     if (!frame) {
       setIsRendering(false);
@@ -81,11 +58,11 @@ export function Preview() {
     }
 
     try {
-      const photoUrls = capturedPhotos.map(p => p.dataUrl);
-      const outputWidth = captureMode === 'single' ? 1200 : 800;
+      const photoUrls = capturedPhotos.map((p) => p.dataUrl);
+      const facing = sessionStorage.getItem('cameraFacing');
       const finalUrl = await renderPhotoWithFrame(frame, photoUrls, {
-        outputWidth,
-        text: customText,
+        outputWidth: 1200,
+        previewFacingUser: facing === 'user',
       });
       setFinalImageUrl(finalUrl);
     } catch (error) {
@@ -94,7 +71,13 @@ export function Preview() {
     } finally {
       setIsRendering(false);
     }
-  };
+  }, [capturedPhotos, frameId]);
+
+  useEffect(() => {
+    if (capturedPhotos.length > 0 && frameId) {
+      void renderFinalImage();
+    }
+  }, [capturedPhotos, frameId, renderFinalImage]);
 
   const closeIosHelp = useCallback(() => {
     setIosHelpOpen(false);
@@ -207,13 +190,9 @@ export function Preview() {
         </div>
       )}
 
-      {/* Header */}
       <div className="bg-white/50 backdrop-blur-sm border-b border-[#2C2C2C]/10 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-3 bg-gradient-to-r from-[#D4AF37] to-[#B8941F] text-white px-5 sm:px-6 py-3 rounded-2xl shadow-lg">
               <Sparkles size={22} className="shrink-0" />
               <h1 className={`text-lg sm:text-2xl font-bold ${language === 'ar' ? "font-['Cairo']" : "font-['Playfair_Display']"}`}>
@@ -228,10 +207,8 @@ export function Preview() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-auto p-4 sm:p-6 pb-32 md:pb-6">
         <div className="max-w-2xl mx-auto">
-          {/* Preview */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -251,10 +228,7 @@ export function Preview() {
                 </div>
               </div>
             ) : renderError ? (
-              <div
-                className="w-full rounded-2xl border border-red-200 bg-red-50 p-6 text-center"
-                role="alert"
-              >
+              <div className="w-full rounded-2xl border border-red-200 bg-red-50 p-6 text-center" role="alert">
                 <p className={`text-red-800 text-sm mb-4 ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
                   {language === 'ar'
                     ? 'حدث خطأ أثناء إنشاء الصورة. حاول مرة أخرى.'
@@ -274,12 +248,11 @@ export function Preview() {
                 animate={{ opacity: 1 }}
                 src={finalImageUrl}
                 alt="Final photo"
-                className="w-full rounded-2xl shadow-xl"
+                className="w-full rounded-2xl shadow-xl bg-white"
               />
             ) : null}
           </motion.div>
 
-          {/* Actions — tablet / desktop */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -327,7 +300,6 @@ export function Preview() {
             </button>
           </motion.div>
 
-          {/* Share hint */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -338,7 +310,7 @@ export function Preview() {
               {language === 'ar' ? '✨ شارك فرحتك مع أحبائك' : '✨ Share your joy with loved ones'}
             </p>
             <p className={`text-[#6B7280] text-sm ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
-              {language === 'ar' 
+              {language === 'ar'
                 ? 'حمّل الصورة وشاركها في وسائل التواصل الاجتماعي'
                 : 'Download and share on your favorite social media'}
             </p>
@@ -347,7 +319,6 @@ export function Preview() {
             </p>
           </motion.div>
 
-          {/* Privacy notice */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -361,7 +332,6 @@ export function Preview() {
         </div>
       </div>
 
-      {/* Mobile sticky actions */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-[#2C2C2C]/10 bg-[#FBF8F3]/95 backdrop-blur-md px-4 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
@@ -386,11 +356,7 @@ export function Preview() {
           <RotateCcw size={20} className="text-[#B8941F]" />
           {language === 'ar' ? 'إعادة التصوير' : 'Retake'}
         </button>
-        <button
-          type="button"
-          onClick={handleStartOver}
-          className="mt-2 w-full py-2 text-sm font-medium text-[#6B7280] touch-manipulation"
-        >
+        <button type="button" onClick={handleStartOver} className="mt-2 w-full py-2 text-sm font-medium text-[#6B7280] touch-manipulation">
           {language === 'ar' ? 'البدء من جديد' : 'Start over from the beginning'}
         </button>
       </div>

@@ -1,6 +1,5 @@
 /**
  * Detect photo opening: flood-fill transparent pixels from image center.
- * For film-strip, flood-fill within each vertical quarter from band center.
  */
 import sharp from 'sharp'
 import fs from 'fs'
@@ -91,22 +90,6 @@ async function holeFromCenter(file, marginFrac = 0.08) {
   return { file, hole: toPct(b, width, height) }
 }
 
-async function stripHoles(file) {
-  const p = path.join(dir, file)
-  const { data, info } = await sharp(p).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
-  const { width, height, channels } = info
-  const bands = []
-  for (let i = 0; i < 4; i++) {
-    const y0 = Math.floor((height * i) / 4)
-    const y1 = Math.floor((height * (i + 1)) / 4)
-    const cy = Math.floor((y0 + y1) / 2)
-    const cx = Math.floor(width / 2)
-    const b = floodTransparentBBox(data, width, height, channels, cx, cy, y0, y1, 0.06)
-    bands.push(toPct(b, width, height))
-  }
-  return { file, photoAreas: bands }
-}
-
 const FILES = [
   'film-landscape.png',
   'green-bunting.png',
@@ -118,8 +101,4 @@ const FILES = [
 for (const f of FILES) {
   if (!fs.existsSync(path.join(dir, f))) continue
   console.log(JSON.stringify(await holeFromCenter(f)))
-}
-
-if (fs.existsSync(path.join(dir, 'film-strip.png'))) {
-  console.log(JSON.stringify(await stripHoles('film-strip.png')))
 }

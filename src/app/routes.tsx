@@ -1,10 +1,9 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Outlet } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
 
 const Home = lazy(() => import('./screens/Home').then((m) => ({ default: m.Home })));
-const ModeSelection = lazy(() => import('./screens/ModeSelection').then((m) => ({ default: m.ModeSelection })));
 const FrameSelection = lazy(() => import('./screens/FrameSelection').then((m) => ({ default: m.FrameSelection })));
 const Camera = lazy(() => import('./screens/Camera').then((m) => ({ default: m.Camera })));
 const Preview = lazy(() => import('./screens/Preview').then((m) => ({ default: m.Preview })));
@@ -44,7 +43,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'mode',
-        Component: ModeSelection,
+        element: <Navigate to="/frames" replace />,
       },
       {
         path: 'frames',

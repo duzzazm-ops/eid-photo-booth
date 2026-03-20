@@ -1,10 +1,9 @@
 import { RefObject, useCallback, useState } from 'react';
-import { CapturedPhoto, CaptureMode, FilterType } from '../types/photobooth';
+import { CapturedPhoto, FilterType } from '../types/photobooth';
 import { applyFilter } from '../utils/photoFilters';
 
 interface UsePhotoCaptureOptions {
   videoRef: RefObject<HTMLVideoElement | null>;
-  mode: CaptureMode;
   timerDuration: number;
   selectedFilter: FilterType;
   isMirrored: boolean;
@@ -15,7 +14,6 @@ interface UsePhotoCaptureOptions {
 
 export function usePhotoCapture({
   videoRef,
-  mode,
   timerDuration,
   selectedFilter,
   isMirrored,
@@ -76,36 +74,29 @@ export function usePhotoCapture({
     setIsProcessing(false);
 
     const photos: CapturedPhoto[] = [];
-    const count = mode === 'single' ? 1 : 4;
 
     try {
-      for (let i = 0; i < count; i++) {
-        for (let second = timerDuration; second > 0; second--) {
-          setCountdown(second);
-          await wait(1000);
-        }
-        setCountdown(0);
-        await wait(120);
-
-        const dataUrl = captureFrame();
-        if (dataUrl) {
-          const capturedPhoto = { dataUrl, filter: selectedFilter };
-          photos.push(capturedPhoto);
-          onPhotoCaptured?.(capturedPhoto, photos.length - 1);
-        }
-        setCountdown(null);
-
-        if (i < count - 1) {
-          await wait(1000);
-        }
+      for (let second = timerDuration; second > 0; second--) {
+        setCountdown(second);
+        await wait(1000);
       }
+      setCountdown(0);
+      await wait(120);
+
+      const dataUrl = captureFrame();
+      if (dataUrl) {
+        const capturedPhoto = { dataUrl, filter: selectedFilter };
+        photos.push(capturedPhoto);
+        onPhotoCaptured?.(capturedPhoto, 0);
+      }
+      setCountdown(null);
     } finally {
       setIsCapturing(false);
       setIsProcessing(true);
     }
 
     return photos;
-  }, [captureFrame, isCapturing, mode, onPhotoCaptured, selectedFilter, timerDuration, wait]);
+  }, [captureFrame, isCapturing, onPhotoCaptured, selectedFilter, timerDuration, wait]);
 
   const finishProcessing = useCallback(() => setIsProcessing(false), []);
 

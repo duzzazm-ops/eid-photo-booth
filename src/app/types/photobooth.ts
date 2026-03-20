@@ -1,5 +1,3 @@
-export type CaptureMode = 'single' | 'strip';
-
 export type FilterType = 'none' | 'soft' | 'bw' | 'warm' | 'vintage' | 'cool';
 
 export interface PhotoArea {
@@ -15,11 +13,9 @@ export interface Frame {
     en: string;
     ar: string;
   };
-  mode: CaptureMode; // Which capture type this frame is for
   imagePath: string; // Local frame asset path
   ratio: number; // Width / height
-  photoArea: PhotoArea; // Where to place the photo(s) within the frame
-  photoAreas?: PhotoArea[]; // Optional areas for multi-shot layouts
+  photoArea: PhotoArea; // Where to place the photo within the frame
 }
 
 export interface CapturedPhoto {
@@ -28,12 +24,6 @@ export interface CapturedPhoto {
 }
 
 export interface PhotoSession {
-  mode: CaptureMode;
   frameId: string;
   photos: CapturedPhoto[];
-  customText?: {
-    line1: string;
-    line2: string;
-    line3: string;
-  };
 }

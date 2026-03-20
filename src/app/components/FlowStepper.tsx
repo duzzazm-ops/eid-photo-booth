@@ -1,12 +1,11 @@
 import { useLanguage } from '../contexts/LanguageContext';
 
-export type FlowPhase = 'start' | 'mode' | 'frame' | 'camera' | 'result';
+export type FlowPhase = 'start' | 'frame' | 'camera' | 'result';
 
-const PHASE_ORDER: FlowPhase[] = ['start', 'mode', 'frame', 'camera', 'result'];
+const PHASE_ORDER: FlowPhase[] = ['start', 'frame', 'camera', 'result'];
 
 const phaseLabelKey: Record<FlowPhase, string> = {
   start: 'flowStepStart',
-  mode: 'flowStepMode',
   frame: 'flowStepFrame',
   camera: 'flowStepCapture',
   result: 'flowStepResult',

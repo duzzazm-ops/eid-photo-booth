@@ -3,32 +3,18 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { ArrowLeft, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { frames } from '../utils/frames';
-import { CaptureMode } from '../types/photobooth';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FlowStepper } from '../components/FlowStepper';
 
 export function FrameSelection() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
-  const [captureMode, setCaptureMode] = useState<CaptureMode>('single');
-  const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const mode = sessionStorage.getItem('captureMode') as CaptureMode;
-    if (!mode) {
-      navigate('/mode');
-      return;
-    }
-    setCaptureMode(mode);
-  }, [navigate]);
+  const [hoverFrameId, setHoverFrameId] = useState<string | null>(null);
 
   const handleFrameSelect = (frameId: string) => {
     sessionStorage.setItem('selectedFrameId', frameId);
     navigate('/camera');
   };
-
-  // Filter frames by mode
-  const availableFrames = frames.filter(frame => frame.mode === captureMode);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FBF8F3] to-[#F3EDE3] text-[#2C2C2C]">
@@ -36,7 +22,7 @@ export function FrameSelection() {
       <div className="bg-white/50 backdrop-blur-sm border-b border-[#2C2C2C]/10 sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <button
-            onClick={() => navigate('/mode')}
+            onClick={() => navigate('/')}
             className="flex items-center gap-2 text-[#6B7280] hover:text-[#2C2C2C] transition-colors group"
           >
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
@@ -44,18 +30,8 @@ export function FrameSelection() {
               {language === 'ar' ? 'رجوع' : 'Back'}
             </span>
           </button>
-          
-          {/* Mode indicator */}
-          <div className="bg-gradient-to-r from-[#D4AF37] to-[#B8941F] text-white px-5 py-2 rounded-full shadow-lg">
-            <span className={`font-medium text-sm ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
-              {captureMode === 'single' 
-                ? (language === 'ar' ? 'صورة واحدة' : 'Single Photo')
-                : (language === 'ar' ? 'شريط ٤ صور' : '4-Photo Strip')
-              }
-            </span>
-          </div>
 
-          <div className="w-20"></div>
+          <div className="w-20" aria-hidden />
         </div>
       </div>
 
@@ -67,7 +43,6 @@ export function FrameSelection() {
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 py-16">
-        {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -91,28 +66,32 @@ export function FrameSelection() {
           </p>
         </motion.div>
 
-        {/* Frames grid */}
-        <div className={`grid gap-8 ${availableFrames.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'}`}>
-          {availableFrames.map((frame, index) => (
+        <div
+          className={`grid gap-8 ${
+            frames.length === 1 ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+          }`}
+        >
+          {frames.map((frame, index) => (
             <motion.button
               key={frame.id}
+              type="button"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               onClick={() => handleFrameSelect(frame.id)}
-              onMouseEnter={() => setSelectedFrameId(frame.id)}
-              onMouseLeave={() => setSelectedFrameId(null)}
+              onMouseEnter={() => setHoverFrameId(frame.id)}
+              onMouseLeave={() => setHoverFrameId(null)}
               className={`
                 group relative bg-white/80 backdrop-blur rounded-2xl p-5 
                 transition-all duration-300 hover:scale-105 hover:shadow-2xl
                 border-2
-                ${selectedFrameId === frame.id 
-                  ? 'border-[#D4AF37] shadow-[0_8px_30px_rgba(212,175,55,0.3)]' 
-                  : 'border-transparent hover:border-[#D4AF37]/30'
+                ${
+                  hoverFrameId === frame.id
+                    ? 'border-[#D4AF37] shadow-[0_8px_30px_rgba(212,175,55,0.3)]'
+                    : 'border-transparent hover:border-[#D4AF37]/30'
                 }
               `}
             >
-              {/* Frame preview */}
               <div className="bg-gradient-to-br from-[#F9FAFB] to-[#F3F4F6] rounded-xl overflow-hidden mb-4 aspect-[3/4] flex items-center justify-center p-2">
                 <img
                   src={frame.imagePath}
@@ -121,7 +100,6 @@ export function FrameSelection() {
                 />
               </div>
 
-              {/* Frame name */}
               <h3 className="font-semibold text-center text-lg mb-1">
                 {language === 'ar' ? (
                   <span className="font-['Cairo']">{frame.name.ar}</span>
@@ -130,8 +108,7 @@ export function FrameSelection() {
                 )}
               </h3>
 
-              {/* Selection indicator */}
-              {selectedFrameId === frame.id && (
+              {hoverFrameId === frame.id && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -144,7 +121,6 @@ export function FrameSelection() {
           ))}
         </div>
 
-        {/* Info text */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -156,9 +132,7 @@ export function FrameSelection() {
               اضغط على أي إطار للمتابعة إلى الكاميرا
             </span>
           ) : (
-            <span className="font-['Inter']">
-              Click any frame to continue to the camera
-            </span>
+            <span className="font-['Inter']">Click any frame to continue to the camera</span>
           )}
         </motion.p>
         <p

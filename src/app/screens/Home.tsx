@@ -66,7 +66,7 @@ export function Home() {
           transition={{ duration: 0.55, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
         >
           <button
-            onClick={() => navigate('/mode')}
+            onClick={() => navigate('/frames')}
             className={`group relative flex items-center justify-center gap-4 bg-[#1A1A1A] text-white px-10 py-5 overflow-hidden transition-all duration-500 hover:bg-[#2A2A2A]`}
           >
             <span className={`relative z-10 text-sm tracking-[0.2em] uppercase ${isRTL ? "font-['Tajawal']" : "font-['Montserrat']"}`}>
@@ -99,8 +99,8 @@ export function Home() {
               icon: <Camera size={24} strokeWidth={1} className="text-[#C1A67B]" />,
               titleEn: 'Curated Styles',
               titleAr: 'أنماط مُنتقاة',
-              descEn: 'Single portraits or classic film strips',
-              descAr: 'صور فردية أو شرائط سينمائية كلاسيكية'
+              descEn: 'Festive frames for your portrait',
+              descAr: 'إطارات احتفالية لصورتك'
             },
             {
               icon: <ImageIcon size={24} strokeWidth={1} className="text-[#C1A67B]" />,

@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ArrowLeft, Camera as CameraIcon, RefreshCcw, Timer, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CaptureMode, FilterType, CapturedPhoto, Frame } from '../types/photobooth';
+import { FilterType, Frame } from '../types/photobooth';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { frames } from '../utils/frames';
 import { useCamera } from '../hooks/useCamera';
@@ -14,19 +14,12 @@ export function Camera() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
-  
-  const [captureMode, setCaptureMode] = useState<CaptureMode>('single');
+
   const [selectedFrame, setSelectedFrame] = useState<Frame | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('none');
   const [timerDuration, setTimerDuration] = useState<number>(3);
-  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
   const [cameraMessage, setCameraMessage] = useState('');
   const [flashEffect, setFlashEffect] = useState(false);
-  const [customText, setCustomText] = useState({
-    arabic: 'عيد سعيد',
-    familyName: '',
-    yearLabel: 'Eid 2026',
-  });
 
   const filters: FilterType[] = ['none', 'soft', 'bw', 'warm', 'vintage', 'cool'];
   const frameRatio = selectedFrame?.ratio ?? 3 / 4;
@@ -67,7 +60,6 @@ export function Camera() {
     finishProcessing,
   } = usePhotoCapture({
     videoRef,
-    mode: captureMode,
     timerDuration,
     selectedFilter,
     isMirrored: facingMode === 'user',
@@ -76,31 +68,22 @@ export function Camera() {
       setTimeout(() => setFlashEffect(false), 200);
     },
     onShutter: playShutterSound,
-    onPhotoCaptured: (photo) => {
-      setCapturedPhotos((prev) => [...prev, photo]);
-    },
   });
 
   useEffect(() => {
-    const mode = sessionStorage.getItem('captureMode') as CaptureMode;
     const frameId = sessionStorage.getItem('selectedFrameId');
-    
-    if (!mode || !frameId) {
-      navigate('/mode');
+
+    if (!frameId) {
+      navigate('/frames');
       return;
     }
-    
-    const frame = frames.find(f => f.id === frameId);
+
+    const frame = frames.find((f) => f.id === frameId);
     if (!frame) {
       navigate('/frames');
       return;
     }
-    if (frame.mode !== mode) {
-      navigate('/frames');
-      return;
-    }
-    
-    setCaptureMode(mode);
+
     setSelectedFrame(frame);
   }, [navigate]);
 
@@ -131,21 +114,15 @@ export function Camera() {
 
   const startCountdownCapture = async () => {
     if (!stream || isCapturing || isProcessing) return;
-    setCapturedPhotos([]);
     setCameraMessage('');
     const photos = await startCaptureSequence();
     if (!photos.length) {
       finishProcessing();
       return;
     }
-    if (captureMode === 'strip' && photos.length < 4) {
-      setCameraMessage(language === 'ar' ? 'تعذر التقاط ٤ صور كاملة، حاول مرة أخرى.' : 'Could not capture all 4 strip photos. Please retry.');
-      finishProcessing();
-      return;
-    }
 
     sessionStorage.setItem('capturedPhotos', JSON.stringify(photos));
-    sessionStorage.setItem('customText', JSON.stringify(customText));
+    sessionStorage.setItem('cameraFacing', facingMode === 'user' ? 'user' : 'environment');
     setTimeout(() => {
       finishProcessing();
       navigate('/preview');
@@ -155,15 +132,13 @@ export function Camera() {
   const statusText = useMemo(() => {
     if (isProcessing) return language === 'ar' ? '✨ جاري معالجة الصورة...' : '✨ Processing final image...';
     if (isCapturing) return language === 'ar' ? '⏱️ جاري التصوير...' : '⏱️ Capturing...';
-    if (captureMode === 'strip') return language === 'ar' ? '4 صور متتالية' : '4 photos in sequence';
     return language === 'ar' ? 'جاهز للتصوير' : 'Ready to capture';
-  }, [captureMode, isCapturing, isProcessing, language]);
+  }, [isCapturing, isProcessing, language]);
 
   if (!selectedFrame) return null;
 
   return (
     <div className="min-h-[100dvh] bg-[#2C2C2C] text-white flex flex-col">
-      {/* Flash effect */}
       <AnimatePresence>
         {flashEffect && (
           <motion.div
@@ -175,7 +150,6 @@ export function Camera() {
         )}
       </AnimatePresence>
 
-      {/* Countdown overlay */}
       <AnimatePresence>
         {countdown !== null && (
           <motion.div
@@ -197,10 +171,10 @@ export function Camera() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
       <div className="bg-black/50 backdrop-blur-md border-b border-white/10 z-10 shrink-0">
         <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
           <button
+            type="button"
             onClick={() => navigate('/frames')}
             className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors group min-h-11 min-w-11 sm:min-w-0 touch-manipulation"
             disabled={isCapturing}
@@ -210,17 +184,14 @@ export function Camera() {
               {language === 'ar' ? 'رجوع' : 'Back'}
             </span>
           </button>
-          
+
           <div className="flex items-center gap-2 sm:gap-3 bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-full px-3 sm:px-4 py-1.5 sm:py-2 shrink-0">
             <div className="w-2 h-2 bg-[#D4AF37] rounded-full animate-pulse motion-reduce:animate-none" />
             <span className={`text-xs sm:text-sm font-medium text-[#D4AF37] whitespace-nowrap ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
-              {captureMode === 'single' 
-                ? (language === 'ar' ? 'صورة واحدة' : 'Single Photo')
-                : `${Math.min(capturedPhotos.length + 1, 4)}/4`
-              }
+              {language === 'ar' ? 'صورة واحدة' : 'Single Photo'}
             </span>
           </div>
-          
+
           <div className="w-11 sm:w-20 shrink-0" aria-hidden />
         </div>
         <div className="max-w-6xl mx-auto px-3 sm:px-4 pb-3">
@@ -228,7 +199,6 @@ export function Camera() {
         </div>
       </div>
 
-      {/* Camera view: stage matches frame ratio; video fills stage; PNG frame on top (transparent holes show video only) */}
       <div className="flex-1 min-h-0 relative bg-[#1a1a1a] flex items-center justify-center overflow-hidden px-2 pt-2 pb-1 sm:px-4 sm:py-3">
         <div className="relative mx-auto w-full max-w-[min(100%,56rem)] flex justify-center">
           <div
@@ -239,102 +209,86 @@ export function Camera() {
               width: 'auto',
             }}
           >
-          {/* Full-bleed live video (clipped to stage — same composition as export object-fit: cover in photo area) */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className={`absolute inset-0 h-full w-full object-cover motion-reduce:transition-none ${
-              facingMode === 'user' ? 'object-[center_38%]' : 'object-center'
-            }`}
-            style={{
-              transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
-              filter: videoPreviewFilter,
-            }}
-          />
-
-          {/* Transparent PNG frame artwork */}
-          <div className="absolute inset-0 z-10 pointer-events-none">
-            <img
-              src={selectedFrame.imagePath}
-              alt=""
-              className="absolute inset-0 h-full w-full object-contain [image-rendering:auto]"
-              draggable={false}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`absolute inset-0 h-full w-full object-cover motion-reduce:transition-none ${
+                facingMode === 'user' ? 'object-[center_38%]' : 'object-center'
+              }`}
+              style={{
+                transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
+                filter: videoPreviewFilter,
+              }}
             />
-          </div>
 
-          {(isStarting || cameraMessage) && (
-            <div
-              className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
-              role={isStarting ? 'status' : 'alert'}
-              aria-live="polite"
-            >
-              <div className="text-center max-w-sm">
-                {isStarting ? (
-                  <>
-                    <div
-                      className="mx-auto mb-4 h-12 w-12 rounded-full border-2 border-[#D4AF37] border-t-transparent animate-spin motion-reduce:animate-none"
-                      aria-hidden
-                    />
-                    <p className={`text-sm sm:text-base ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
-                      {language === 'ar' ? 'جاري تشغيل الكاميرا...' : 'Preparing your camera…'}
-                    </p>
-                    <p className={`mt-2 text-xs text-gray-400 ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
-                      {t('privacyLocalShort')}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className={`mb-4 text-sm sm:text-base leading-relaxed ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
-                      {cameraMessage || errorMessage}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => startCamera()}
-                      className="min-h-12 px-6 py-3 rounded-xl bg-[#D4AF37] text-[#2C2C2C] font-semibold touch-manipulation w-full sm:w-auto"
-                    >
-                      {language === 'ar' ? 'إعادة المحاولة' : 'Try again'}
-                    </button>
-                  </>
-                )}
+            <div className="absolute inset-0 z-10 pointer-events-none">
+              <img
+                src={selectedFrame.imagePath}
+                alt=""
+                className="absolute inset-0 h-full w-full object-contain [image-rendering:auto]"
+                draggable={false}
+              />
+            </div>
+
+            {(isStarting || cameraMessage) && (
+              <div
+                className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+                role={isStarting ? 'status' : 'alert'}
+                aria-live="polite"
+              >
+                <div className="text-center max-w-sm">
+                  {isStarting ? (
+                    <>
+                      <div
+                        className="mx-auto mb-4 h-12 w-12 rounded-full border-2 border-[#D4AF37] border-t-transparent animate-spin motion-reduce:animate-none"
+                        aria-hidden
+                      />
+                      <p className={`text-sm sm:text-base ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
+                        {language === 'ar' ? 'جاري تشغيل الكاميرا...' : 'Preparing your camera…'}
+                      </p>
+                      <p className={`mt-2 text-xs text-gray-400 ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
+                        {t('privacyLocalShort')}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className={`mb-4 text-sm sm:text-base leading-relaxed ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
+                        {cameraMessage || errorMessage}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => startCamera()}
+                        className="min-h-12 px-6 py-3 rounded-xl bg-[#D4AF37] text-[#2C2C2C] font-semibold touch-manipulation w-full sm:w-auto"
+                      >
+                        {language === 'ar' ? 'إعادة المحاولة' : 'Try again'}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Photo strip progress */}
-          {captureMode === 'strip' && capturedPhotos.length > 0 && (
-            <div className="absolute top-3 end-3 flex gap-2 bg-black/50 backdrop-blur-sm rounded-lg p-2">
-              {[0, 1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className={`w-2 h-10 rounded-full transition-all ${
-                    i < capturedPhotos.length ? 'bg-[#D4AF37]' : 'bg-white/20'
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Controls */}
       <div className="bg-[#1F1F1F] border-t border-white/10 p-4 sm:p-5 pb-[max(1rem,env(safe-area-inset-bottom))] shrink-0">
         <div className="max-w-4xl mx-auto">
-          {/* Filter selector */}
           <div className="mb-4 sm:mb-5 overflow-x-auto scrollbar-hide -mx-1 px-1">
             <div className="flex gap-2 pb-2 justify-center">
               {filters.map((filter) => (
                 <button
                   key={filter}
+                  type="button"
                   onClick={() => setSelectedFilter(filter)}
                   disabled={isCapturing}
                   className={`
                     px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-colors touch-manipulation
-                    ${selectedFilter === filter
-                      ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8941F] text-white shadow-lg shadow-[#D4AF37]/30'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                    ${
+                      selectedFilter === filter
+                        ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8941F] text-white shadow-lg shadow-[#D4AF37]/30'
+                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
                     }
                   `}
                 >
@@ -345,46 +299,20 @@ export function Camera() {
             </div>
           </div>
 
-          {/* Custom text */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3 sm:mb-4">
-            <input
-              value={customText.arabic}
-              onChange={(e) => setCustomText((prev) => ({ ...prev, arabic: e.target.value }))}
-              disabled={isCapturing || isProcessing}
-              dir="rtl"
-              className="bg-white/5 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#D4AF37]/60 min-h-11"
-              placeholder={language === 'ar' ? 'عيد سعيد' : 'Arabic greeting'}
-            />
-            <input
-              value={customText.familyName}
-              onChange={(e) => setCustomText((prev) => ({ ...prev, familyName: e.target.value }))}
-              disabled={isCapturing || isProcessing}
-              className="bg-white/5 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#D4AF37]/60 min-h-11"
-              placeholder={language === 'ar' ? 'اسم العائلة' : 'Family name'}
-            />
-            <input
-              value={customText.yearLabel}
-              onChange={(e) => setCustomText((prev) => ({ ...prev, yearLabel: e.target.value }))}
-              disabled={isCapturing || isProcessing}
-              className="bg-white/5 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#D4AF37]/60 min-h-11"
-              placeholder="Eid 2026"
-            />
-          </div>
-
-          {/* Timer and Capture */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            {/* Timer selector */}
             <div className="flex gap-2 sm:gap-3 justify-center sm:justify-start order-2 sm:order-1">
               {[3, 5, 10].map((duration) => (
                 <button
                   key={duration}
+                  type="button"
                   onClick={() => setTimerDuration(duration)}
                   disabled={isCapturing || isProcessing}
                   className={`
                     w-12 h-12 sm:w-14 sm:h-14 rounded-xl text-xs sm:text-sm font-bold transition-colors flex flex-col items-center justify-center touch-manipulation
-                    ${timerDuration === duration
-                      ? 'bg-white text-[#2C2C2C] shadow-lg'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                    ${
+                      timerDuration === duration
+                        ? 'bg-white text-[#2C2C2C] shadow-lg'
+                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
                     }
                   `}
                 >
@@ -394,7 +322,6 @@ export function Camera() {
               ))}
             </div>
 
-            {/* Capture button */}
             <div className="flex items-center justify-center gap-4 order-1 sm:order-2">
               <button
                 type="button"
@@ -414,9 +341,10 @@ export function Camera() {
                 className={`
                   flex-shrink-0 w-[5.75rem] h-[5.75rem] sm:w-24 sm:h-24 rounded-full flex items-center justify-center
                   transition-colors duration-300 relative touch-manipulation
-                  ${isCapturing || isProcessing
-                    ? 'bg-gray-600 cursor-not-allowed'
-                    : 'bg-gradient-to-br from-[#D4AF37] to-[#B8941F] shadow-2xl shadow-[#D4AF37]/40 active:shadow-[#D4AF37]/60'
+                  ${
+                    isCapturing || isProcessing
+                      ? 'bg-gray-600 cursor-not-allowed'
+                      : 'bg-gradient-to-br from-[#D4AF37] to-[#B8941F] shadow-2xl shadow-[#D4AF37]/40 active:shadow-[#D4AF37]/60'
                   }
                 `}
               >

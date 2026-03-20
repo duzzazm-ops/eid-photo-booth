@@ -15,7 +15,6 @@ const OUT = path.join(root, 'public', 'frames')
 
 /** First matching substring wins; copy to public/frames/<to>.png */
 const MAP = [
-  { match: 'film-strip', to: 'film-strip' },
   { match: 'green-bunting', to: 'green-bunting' },
   { match: 'blue-bunting', to: 'blue-bunting' },
   { match: 'white-decorative', to: 'white-decorative' },

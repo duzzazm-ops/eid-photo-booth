@@ -14,13 +14,12 @@ Use exactly **one** `.png` suffix (not `myframe.png.png`).
 | `blue-bunting.png` | `blue-bunting` |
 | `white-decorative.png` | `white-decorative` |
 | `postage-stamp.png` | `postage-stamp` |
-| `film-strip.png` | `film-strip` |
 
 Requirements:
 
-- **PNG with alpha** — the picture opening(s) must be **fully transparent** so the camera/video shows through.
-- Recommended canvas: **900×1200** (or keep your export size consistent with `photoArea` in `src/app/utils/frames.ts`).
-- After replacing assets, ensure `photoArea` / `photoAreas` percentages still match your artwork.
+- **PNG with alpha** — the picture opening must be **fully transparent** so the camera/video shows through.
+- Keep export aspect ratio consistent with `ratio` and `photoArea` in `src/app/utils/frames.ts`.
+- Exported downloads use a **white** mat under the frame; holes in the artwork should match `photoArea`.
 
 ## Regenerate from SVG (optional dev only)
 
@@ -36,18 +35,18 @@ Do **not** run this if you have already placed your real artwork here — it wil
 
 If Cursor saved attachments under a folder with names like `...frame-square-film-eid....png`, either:
 
-1. **Run the importer** (pass the folder that contains the six PNGs):
+1. **Run the importer** (pass the folder that contains your PNGs):
 
    ```bash
    npm run frames:import -- --from="C:\path\to\that\folder"
    ```
 
-   It matches keywords in the filename (`film-strip`, `green-bunting`, `blue-bunting`, `white-decorative`, `postage-stamp`, `frame-square-film` / `film-eid` → `film-landscape`).
+   It matches keywords in the filename (`green-bunting`, `blue-bunting`, `white-decorative`, `postage-stamp`, `frame-square-film` / `film-eid` → `film-landscape`).
 
-2. Or create **`user-frame-exports/`** in the project root, drop the six PNGs there, then:
+2. Or create **`user-frame-exports/`** in the project root, drop your PNGs there, then:
 
    ```bash
    npm run frames:import
    ```
 
-After importing, open each PNG and confirm transparent holes line up with `photoArea` / `photoAreas` in `src/app/utils/frames.ts` (adjust percentages and `ratio` = **image width ÷ height** if needed).
+After importing, open each PNG and confirm transparent holes line up with `photoArea` in `src/app/utils/frames.ts` (adjust percentages and `ratio` = **image width ÷ height** if needed).
