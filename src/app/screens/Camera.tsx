@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router';
 import { useLanguage } from '../contexts/LanguageContext';
-import { ArrowLeft, Camera as CameraIcon, RefreshCcw, Timer, Sparkles } from 'lucide-react';
+import { ArrowLeft, Camera as CameraIcon, RefreshCcw, Timer, Sparkles, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FilterType, Frame } from '../types/photobooth';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { frames } from '../utils/frames';
+import { frames, frameRequiresLandscapeCapture } from '../utils/frames';
 import { useCamera } from '../hooks/useCamera';
 import { usePhotoCapture } from '../hooks/usePhotoCapture';
 import { FlowStepper } from '../components/FlowStepper';
@@ -20,10 +20,21 @@ export function Camera() {
   const [timerDuration, setTimerDuration] = useState<number>(3);
   const [cameraMessage, setCameraMessage] = useState('');
   const [flashEffect, setFlashEffect] = useState(false);
+  const [deviceLandscape, setDeviceLandscape] = useState(false);
+  const [coarsePointer, setCoarsePointer] = useState(false);
 
   const filters: FilterType[] = ['none', 'soft', 'bw', 'warm', 'vintage', 'cool'];
-  /** Full-bleed capture preview — frame is applied only when saving (see renderPhotoWithFrame). */
-  const capturePreviewRatio = 9 / 16;
+
+  const needsLandscapeFrame = Boolean(selectedFrame && frameRequiresLandscapeCapture(selectedFrame));
+  /** Touch/tablet: block capture until sideways for wide frames. Desktop (fine pointer): no block. */
+  const captureOrientationBlocked = needsLandscapeFrame && coarsePointer && !deviceLandscape;
+
+  /** Full-bleed preview — portrait 9∶16 or landscape 16∶9 when a landscape frame is active and device is ready. */
+  const capturePreviewRatio = useMemo(() => {
+    if (needsLandscapeFrame && deviceLandscape) return 16 / 9;
+    return 9 / 16;
+  }, [needsLandscapeFrame, deviceLandscape]);
+
   const videoPreviewFilter = useMemo(() => previewFilterCss(selectedFilter), [selectedFilter]);
 
   const {
@@ -89,6 +100,30 @@ export function Camera() {
   }, [navigate]);
 
   useEffect(() => {
+    const readOrientation = () => {
+      const land =
+        typeof window !== 'undefined' &&
+        (window.matchMedia('(orientation: landscape)').matches || window.innerWidth > window.innerHeight);
+      setDeviceLandscape(land);
+    };
+    const readPointer = () => {
+      setCoarsePointer(typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
+    };
+    readOrientation();
+    readPointer();
+    window.addEventListener('resize', readOrientation);
+    window.addEventListener('orientationchange', readOrientation);
+    const mq = window.matchMedia('(orientation: landscape)');
+    const onMq = () => readOrientation();
+    mq.addEventListener?.('change', onMq);
+    return () => {
+      window.removeEventListener('resize', readOrientation);
+      window.removeEventListener('orientationchange', readOrientation);
+      mq.removeEventListener?.('change', onMq);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!selectedFrame) return;
     startCamera();
   }, [selectedFrame, startCamera]);
@@ -114,7 +149,7 @@ export function Camera() {
   }, [errorMessage, language, permissionState]);
 
   const startCountdownCapture = async () => {
-    if (!stream || isCapturing || isProcessing) return;
+    if (!stream || isCapturing || isProcessing || captureOrientationBlocked) return;
     setCameraMessage('');
     const photos = await startCaptureSequence();
     if (!photos.length) {
@@ -220,7 +255,11 @@ export function Camera() {
               playsInline
               muted
               className={`absolute inset-0 h-full w-full object-cover motion-reduce:transition-none ${
-                facingMode === 'user' ? 'object-[center_38%]' : 'object-center'
+                needsLandscapeFrame && deviceLandscape
+                  ? 'object-center'
+                  : facingMode === 'user'
+                    ? 'object-[center_38%]'
+                    : 'object-center'
               }`}
               style={{
                 transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
@@ -228,9 +267,27 @@ export function Camera() {
               }}
             />
 
+            {captureOrientationBlocked && (
+              <div
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/88 backdrop-blur-sm px-6 text-center"
+                role="alert"
+                aria-live="polite"
+              >
+                <Smartphone size={48} className="text-[#D4AF37] shrink-0 rotate-90 motion-reduce:rotate-0" aria-hidden />
+                <p className={`text-base sm:text-lg font-semibold text-white max-w-sm leading-snug ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
+                  {language === 'ar'
+                    ? 'أدرّ هاتفك أفقياً (عرضاً) لاستخدام هذا الإطار. التقاط الصورة يتفعّل بعد الدوران.'
+                    : 'Rotate your phone horizontally for this frame. Capture unlocks when you’re in landscape.'}
+                </p>
+                <p className={`text-xs text-gray-400 max-w-xs ${language === 'ar' ? "font-['Cairo']" : "font-['Inter']"}`}>
+                  {t('cameraRotateLandscape')}
+                </p>
+              </div>
+            )}
+
             {(isStarting || cameraMessage) && (
               <div
-                className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+                  className="absolute inset-0 z-30 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
                 role={isStarting ? 'status' : 'alert'}
                 aria-live="polite"
               >
@@ -278,7 +335,7 @@ export function Camera() {
                   key={filter}
                   type="button"
                   onClick={() => setSelectedFilter(filter)}
-                  disabled={isCapturing}
+                  disabled={isCapturing || captureOrientationBlocked}
                   className={`
                     px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-colors touch-manipulation
                     ${
@@ -302,7 +359,7 @@ export function Camera() {
                   key={duration}
                   type="button"
                   onClick={() => setTimerDuration(duration)}
-                  disabled={isCapturing || isProcessing}
+                  disabled={isCapturing || isProcessing || captureOrientationBlocked}
                   className={`
                     w-12 h-12 sm:w-14 sm:h-14 rounded-xl text-xs sm:text-sm font-bold transition-colors flex flex-col items-center justify-center touch-manipulation
                     ${
@@ -322,7 +379,7 @@ export function Camera() {
               <button
                 type="button"
                 onClick={switchCamera}
-                disabled={isCapturing || isProcessing || !stream}
+                disabled={isCapturing || isProcessing || !stream || captureOrientationBlocked}
                 className="min-h-[52px] min-w-[52px] rounded-xl bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center touch-manipulation"
                 aria-label={language === 'ar' ? 'تبديل الكاميرا' : 'Switch camera'}
               >
@@ -333,19 +390,19 @@ export function Camera() {
                 whileHover={{ scale: isCapturing || isProcessing ? 1 : 1.04 }}
                 whileTap={{ scale: isCapturing || isProcessing ? 1 : 0.96 }}
                 onClick={startCountdownCapture}
-                disabled={isCapturing || isProcessing || !stream}
+                disabled={isCapturing || isProcessing || !stream || captureOrientationBlocked}
                 className={`
                   flex-shrink-0 w-[5.75rem] h-[5.75rem] sm:w-24 sm:h-24 rounded-full flex items-center justify-center
                   transition-colors duration-300 relative touch-manipulation
                   ${
-                    isCapturing || isProcessing
+                    isCapturing || isProcessing || captureOrientationBlocked
                       ? 'bg-gray-600 cursor-not-allowed'
                       : 'bg-gradient-to-br from-[#D4AF37] to-[#B8941F] shadow-2xl shadow-[#D4AF37]/40 active:shadow-[#D4AF37]/60'
                   }
                 `}
               >
                 <div
-                  className={`absolute inset-0 rounded-full motion-reduce:hidden ${!isCapturing && stream && !isProcessing ? 'animate-ping bg-[#D4AF37]/25' : ''}`}
+                  className={`absolute inset-0 rounded-full motion-reduce:hidden ${!isCapturing && stream && !isProcessing && !captureOrientationBlocked ? 'animate-ping bg-[#D4AF37]/25' : ''}`}
                 />
                 <CameraIcon size={40} className="text-white relative z-10" strokeWidth={2} />
               </motion.button>

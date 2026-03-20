@@ -8,6 +8,10 @@ export function framePublicPng(name: string): string {
   return `${assetBase}/frames/${name}.png`;
 }
 
+export function frameRequiresLandscapeCapture(frame: Frame): boolean {
+  return frame.orientation === 'landscape';
+}
+
 /** Ratios & photo windows (see scripts/detect-photo-holes.mjs). */
 export const frames: Frame[] = [
   {
@@ -15,6 +19,12 @@ export const frames: Frame[] = [
     name: { en: 'Classic Film', ar: 'فيلم كلاسيكي' },
     imagePath: framePublicPng('film-landscape'),
     ratio: 1,
+    orientation: 'portrait',
+    renderTune: {
+      coverSourceExpand: 1.14,
+      anchorX: 0.5,
+      anchorY: 0.45,
+    },
     photoArea: {
       x: 13.8,
       y: 7.96,
@@ -26,6 +36,7 @@ export const frames: Frame[] = [
     id: 'green-bunting',
     name: { en: 'Green Celebration', ar: 'احتفال أخضر' },
     imagePath: framePublicPng('green-bunting'),
+    orientation: 'portrait',
     ratio: 1080 / 1350,
     photoArea: {
       x: 10.06,
@@ -38,6 +49,7 @@ export const frames: Frame[] = [
     id: 'blue-bunting',
     name: { en: 'Blue Celebration', ar: 'احتفال أزرق' },
     imagePath: framePublicPng('blue-bunting'),
+    orientation: 'portrait',
     ratio: 1080 / 1350,
     photoArea: {
       x: 10.06,
@@ -50,6 +62,7 @@ export const frames: Frame[] = [
     id: 'white-decorative',
     name: { en: 'Elegant White', ar: 'أبيض أنيق' },
     imagePath: framePublicPng('white-decorative'),
+    orientation: 'landscape',
     ratio: 1280 / 720,
     photoArea: {
       x: 17.66,
@@ -62,6 +75,7 @@ export const frames: Frame[] = [
     id: 'postage-stamp',
     name: { en: 'Postage Stamp', ar: 'طابع بريدي' },
     imagePath: framePublicPng('postage-stamp'),
+    orientation: 'landscape',
     ratio: 1280 / 720,
     photoArea: {
       x: 16.88,
@@ -131,7 +145,12 @@ export const renderPhotoWithFrame = async (
   const areaWidth = (inset.width / 100) * canvas.width;
   const areaHeight = (inset.height / 100) * canvas.height;
 
-  const anchorY = options.previewFacingUser === true ? 0.38 : 0.5;
+  const tune = frame.renderTune;
+  const sourceExpand = tune?.coverSourceExpand ?? 1;
+  let anchorX = 0.5;
+  let anchorY = options.previewFacingUser === true ? 0.38 : 0.5;
+  if (tune?.anchorX != null) anchorX = tune.anchorX;
+  if (tune?.anchorY != null) anchorY = tune.anchorY;
 
   const photoLayer = document.createElement('canvas');
   photoLayer.width = outputWidth;
@@ -146,7 +165,17 @@ export const renderPhotoWithFrame = async (
   pctx.beginPath();
   pctx.rect(areaX, areaY, areaWidth, areaHeight);
   pctx.clip();
-  drawImageCoverAnchored(pctx, photoImg, areaX, areaY, areaWidth, areaHeight, 0.5, anchorY);
+  drawImageCoverAnchored(
+    pctx,
+    photoImg,
+    areaX,
+    areaY,
+    areaWidth,
+    areaHeight,
+    anchorX,
+    anchorY,
+    sourceExpand
+  );
   pctx.restore();
 
   const frameScratch = document.createElement('canvas');
@@ -207,7 +236,10 @@ export const renderPhotoWithFrame = async (
   return canvas.toDataURL('image/png');
 };
 
-/** object-fit: cover — fills box via uniform scale (Math.max); may crop; anchors focal point. */
+/**
+ * object-fit: cover into dest (x,y,w,h) via source crop — uniform scale, no stretch.
+ * sourceExpand > 1 widens the source window (more FOV) before mapping to the same dest.
+ */
 function drawImageCoverAnchored(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -216,14 +248,38 @@ function drawImageCoverAnchored(
   width: number,
   height: number,
   anchorX: number,
-  anchorY: number
+  anchorY: number,
+  sourceExpand = 1
 ) {
-  const scale = Math.max(width / img.width, height / img.height);
-  const sw = img.width * scale;
-  const sh = img.height * scale;
-  const dx = x + width * anchorX - img.width * anchorX * scale;
-  const dy = y + height * anchorY - img.height * anchorY * scale;
-  ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, sw, sh);
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  if (iw <= 0 || ih <= 0) return;
+
+  const boxRatio = width / height;
+  const imgRatio = iw / ih;
+  let sw: number;
+  let sh: number;
+  if (imgRatio > boxRatio) {
+    sh = ih;
+    sw = ih * boxRatio;
+  } else {
+    sw = iw;
+    sh = iw / boxRatio;
+  }
+
+  if (sourceExpand > 1) {
+    sw = Math.min(iw, sw * sourceExpand);
+    sh = Math.min(ih, sh * sourceExpand);
+  }
+
+  const focalX = iw * anchorX;
+  const focalY = ih * anchorY;
+  let sx = focalX - sw / 2;
+  let sy = focalY - sh / 2;
+  sx = Math.max(0, Math.min(sx, iw - sw));
+  sy = Math.max(0, Math.min(sy, ih - sh));
+
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, width, height);
 }
 
 const loadImage = (src: string) =>

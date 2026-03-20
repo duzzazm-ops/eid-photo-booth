@@ -36,6 +36,8 @@ const translations = {
     
     // Camera
     camera: 'Camera',
+    cameraRotateLandscape:
+      'Rotate your phone horizontally for this frame. Capture stays disabled until you’re in landscape.',
     capture: 'Capture',
     filters: 'Filters',
     addMessage: 'Add your message',
@@ -94,6 +96,8 @@ const translations = {
     
     // Camera
     camera: 'الكاميرا',
+    cameraRotateLandscape:
+      'قم بتدوير الهاتف أفقياً لهذا الإطار. لن يفعّل زر التقاط الصورة حتى يصبح الجهاز بالعرض.',
     capture: 'التقط',
     filters: 'الفلاتر',
     addMessage: 'اكتب عبارتك',
