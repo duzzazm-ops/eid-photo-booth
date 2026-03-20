@@ -20,9 +20,11 @@ export function Camera() {
   const [timerDuration, setTimerDuration] = useState<number>(3);
   const [cameraMessage, setCameraMessage] = useState('');
   const [flashEffect, setFlashEffect] = useState(false);
+  /** Width/height from the actual PNG so the stage matches the asset (avoids letterboxing vs video). */
+  const [stageAspectFromFile, setStageAspectFromFile] = useState<number | null>(null);
 
   const filters: FilterType[] = ['none', 'soft', 'bw', 'warm', 'vintage', 'cool'];
-  const frameRatio = selectedFrame?.ratio ?? 3 / 4;
+  const stageRatio = selectedFrame ? stageAspectFromFile ?? selectedFrame.ratio : 3 / 4;
   const videoPreviewFilter = useMemo(() => previewFilterCss(selectedFilter), [selectedFilter]);
 
   const {
@@ -86,6 +88,23 @@ export function Camera() {
 
     setSelectedFrame(frame);
   }, [navigate]);
+
+  useEffect(() => {
+    if (!selectedFrame) {
+      setStageAspectFromFile(null);
+      return;
+    }
+    setStageAspectFromFile(null);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (w > 0 && h > 0) setStageAspectFromFile(w / h);
+    };
+    img.onerror = () => setStageAspectFromFile(null);
+    img.src = selectedFrame.imagePath;
+  }, [selectedFrame]);
 
   useEffect(() => {
     if (!selectedFrame) return;
@@ -205,7 +224,7 @@ export function Camera() {
             className="relative overflow-hidden rounded-lg bg-black shadow-2xl max-w-full"
             style={{
               height: 'min(76dvh, calc(100dvh - 16.25rem))',
-              aspectRatio: `${frameRatio}`,
+              aspectRatio: `${stageRatio}`,
               width: 'auto',
             }}
           >
@@ -223,11 +242,12 @@ export function Camera() {
               }}
             />
 
+            {/* object-cover matches video: both fill the stage 1:1 so the frame border lines up with the preview */}
             <div className="absolute inset-0 z-10 pointer-events-none">
               <img
                 src={selectedFrame.imagePath}
                 alt=""
-                className="absolute inset-0 h-full w-full object-contain [image-rendering:auto]"
+                className="absolute inset-0 h-full w-full object-cover object-center [image-rendering:auto]"
                 draggable={false}
               />
             </div>

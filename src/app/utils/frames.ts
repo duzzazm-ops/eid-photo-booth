@@ -27,11 +27,12 @@ export const frames: Frame[] = [
     name: { en: 'Green Celebration', ar: 'احتفال أخضر' },
     imagePath: framePublicPng('green-bunting'),
     ratio: 1080 / 1350,
+    // Inset ~2.5% vs full alpha bbox — outer transparent bbox matched a larger region than the green card window
     photoArea: {
-      x: 7.96,
-      y: 8.9,
-      width: 84.07,
-      height: 72.9,
+      x: 10.06,
+      y: 11.22,
+      width: 79.87,
+      height: 68.75,
     },
   },
   {
@@ -40,10 +41,10 @@ export const frames: Frame[] = [
     imagePath: framePublicPng('blue-bunting'),
     ratio: 1080 / 1350,
     photoArea: {
-      x: 7.96,
-      y: 8.85,
-      width: 84.07,
-      height: 72.92,
+      x: 10.06,
+      y: 11.14,
+      width: 79.87,
+      height: 68.82,
     },
   },
   {
@@ -65,9 +66,9 @@ export const frames: Frame[] = [
     ratio: 1280 / 720,
     photoArea: {
       x: 16.88,
-      y: 8.2,
+      y: 8.47,
       width: 66.02,
-      height: 80.2,
+      height: 80.42,
     },
   },
 ];

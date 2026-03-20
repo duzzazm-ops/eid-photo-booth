@@ -92,7 +92,10 @@ export function FrameSelection() {
                 }
               `}
             >
-              <div className="bg-gradient-to-br from-[#F9FAFB] to-[#F3F4F6] rounded-xl overflow-hidden mb-4 aspect-[3/4] flex items-center justify-center p-2">
+              <div
+                className="bg-gradient-to-br from-[#F9FAFB] to-[#F3F4F6] rounded-xl overflow-hidden mb-4 flex items-center justify-center p-2 max-h-[min(55vh,22rem)] w-full mx-auto"
+                style={{ aspectRatio: `${frame.ratio}` }}
+              >
                 <img
                   src={frame.imagePath}
                   alt={language === 'ar' ? frame.name.ar : frame.name.en}
